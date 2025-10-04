@@ -1,56 +1,39 @@
 package alsu_driver_pkg;
 import uvm_pkg::*;
-import alsu_config_pkg::*;
+import alsu_seq_item_pkg::*;
+import alsu_shared_pkg::*;
 `include "uvm_macros.svh"
 
-class alsu_driver extends uvm_driver;
+class alsu_driver extends uvm_driver #(alsu_seq_item);
     `uvm_component_utils(alsu_driver)
 
-    virtual alsu_if alsu_driver_vif;
-    alsu_config_obj alsu_config_obj_driver;
+    virtual alsu_if alsu_vif;
+    alsu_seq_item seq_item;
 
     function new(string name = "alsu_driver", uvm_component parent = null);
         super.new(name, parent);
     endfunction
 
-    function void build_phase(uvm_phase phase);
-        super.build_phase(phase);
-
-        if (!uvm_config_db #(alsu_config_obj)::get(this, "", "CFG", alsu_config_obj_driver)) begin
-            `uvm_fatal("NO_CFG", "CFG object not found in config DB")
-        end
-    endfunction 
-
-    function void connect_phase(uvm_phase phase);
-        super.connect_phase(phase);
-
-        alsu_driver_vif = alsu_config_obj_driver.alsu_config_vif;
-    endfunction
-
     task run_phase(uvm_phase phase);
         super.run_phase(phase);
-        phase.raise_objection(this);
-
-        @(negedge alsu_driver_vif.clk);
-        alsu_driver_vif.rst = 1;
-        @(negedge alsu_driver_vif.clk);
-        alsu_driver_vif.rst = 0;
-
         forever begin
-            @(negedge alsu_driver_vif.clk);
-            alsu_driver_vif.opcode = $random;
-            alsu_driver_vif.A = $random;
-            alsu_driver_vif.B = $random;
-            alsu_driver_vif.cin = $random;
-            alsu_driver_vif.red_op_A = $random;
-            alsu_driver_vif.red_op_B = $random;
-            alsu_driver_vif.bypass_A = $random;
-            alsu_driver_vif.bypass_B = $random;
-            alsu_driver_vif.direction = $random;
-            alsu_driver_vif.serial_in = $random;
+            seq_item = alsu_seq_item::type_id::create("seq_item");
+            seq_item_port.get_next_item(seq_item);
+            alsu_vif.rst = seq_item.rst;
+            alsu_vif.A = seq_item.A;
+            alsu_vif.B = seq_item.B;
+            alsu_vif.opcode = opcode_e'(seq_item.opcode);
+            alsu_vif.cin = seq_item.cin;
+            alsu_vif.red_op_A = seq_item.red_op_A;
+            alsu_vif.red_op_B = seq_item.red_op_B;
+            alsu_vif.bypass_A = seq_item.bypass_A;
+            alsu_vif.bypass_B = seq_item.bypass_B;
+            alsu_vif.direction = direction_e'(seq_item.direction);
+            alsu_vif.serial_in = seq_item.serial_in;
+            @(negedge alsu_vif.clk);
+            seq_item_port.item_done();
+            `uvm_info("RUN_PHASE", seq_item.convert2string_stimulus(), UVM_HIGH)
         end
-
-        phase.drop_objection(this);
     endtask
 endclass: alsu_driver
 

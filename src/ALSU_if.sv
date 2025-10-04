@@ -1,5 +1,5 @@
 interface alsu_if(clk);
-    input clk;
+    input bit clk;
     logic rst; 
     logic cin; 
     logic red_op_A; 
